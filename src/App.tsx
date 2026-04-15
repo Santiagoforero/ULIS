@@ -1,35 +1,49 @@
 import { AppShell } from '@/components/layout/AppShell'
-import { UlisProvider } from '@/context/UlisContext'
+import { RequireAuth } from '@/components/RequireAuth'
+import { AuthProvider } from '@/context/AuthContext'
+import { ProjectWorkspaceProvider } from '@/context/ProjectWorkspaceContext'
 import { AnalisisNormativoPage } from '@/pages/AnalisisNormativoPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { DiagnosticoLegalPage } from '@/pages/DiagnosticoLegalPage'
 import { DocumentCollectionPage } from '@/pages/DocumentCollectionPage'
 import { LicenciamientoPage } from '@/pages/LicenciamientoPage'
+import { LoginPage } from '@/pages/LoginPage'
 import { MCNPage } from '@/pages/MCNPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { ProjectsPage } from '@/pages/ProjectsPage'
 import { RadicacionPage } from '@/pages/RadicacionPage'
+import { RegisterPage } from '@/pages/RegisterPage'
 import { ReportesPage } from '@/pages/ReportesPage'
+import { SetupPage } from '@/pages/SetupPage'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 export default function App() {
   return (
-    <UlisProvider>
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route element={<AppShell />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="recoleccion" element={<DocumentCollectionPage />} />
-            <Route path="diagnostico" element={<DiagnosticoLegalPage />} />
-            <Route path="analisis-normativo" element={<AnalisisNormativoPage />} />
-            <Route path="mcn" element={<MCNPage />} />
-            <Route path="radicacion" element={<RadicacionPage />} />
-            <Route path="licenciamiento" element={<LicenciamientoPage />} />
-            <Route path="reportes" element={<ReportesPage />} />
-            <Route path="home" element={<Navigate to="/" replace />} />
+          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route element={<RequireAuth />}>
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/p/:projectId" element={<ProjectWorkspaceProvider />}>
+              <Route element={<AppShell />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="recoleccion" element={<DocumentCollectionPage />} />
+                <Route path="diagnostico" element={<DiagnosticoLegalPage />} />
+                <Route path="analisis-normativo" element={<AnalisisNormativoPage />} />
+                <Route path="mcn" element={<MCNPage />} />
+                <Route path="radicacion" element={<RadicacionPage />} />
+                <Route path="licenciamiento" element={<LicenciamientoPage />} />
+                <Route path="reportes" element={<ReportesPage />} />
+              </Route>
+            </Route>
+            <Route path="/" element={<Navigate to="/projects" replace />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
-    </UlisProvider>
+    </AuthProvider>
   )
 }

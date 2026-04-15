@@ -6,9 +6,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { PROJECT } from '@/lib/projectMeta'
+import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import {
   Activity,
+  ArrowLeft,
   Bell,
   Building2,
   FileBarChart,
@@ -22,34 +23,41 @@ import {
   Search,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-
-const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  {
-    to: '/recoleccion',
-    label: 'Recolección Documental',
-    icon: FileSearch,
-    badge: 'ACTIVA',
-  },
-  { to: '/diagnostico', label: 'Diagnóstico Legal', icon: Scale },
-  { to: '/analisis-normativo', label: 'Análisis Normativo', icon: Landmark },
-  { to: '/mcn', label: 'Matriz de Cumplimiento (MCN)', icon: FileCheck2 },
-  { to: '/radicacion', label: 'Radicación', icon: Gavel },
-  { to: '/licenciamiento', label: 'Licenciamiento', icon: Building2 },
-  { to: '/reportes', label: 'Reportes', icon: FileBarChart },
-]
+import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 
 export function AppShell() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const { project, loading, error } = useProjectWorkspace()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  const base = `/p/${projectId ?? ''}`
+
+  const nav = useMemo(
+    () => [
+      { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
+      {
+        to: `${base}/recoleccion`,
+        label: 'Recolección Documental',
+        icon: FileSearch,
+        badge: 'ACTIVA',
+      },
+      { to: `${base}/diagnostico`, label: 'Diagnóstico Legal', icon: Scale },
+      { to: `${base}/analisis-normativo`, label: 'Análisis Normativo', icon: Landmark },
+      { to: `${base}/mcn`, label: 'Matriz de Cumplimiento (MCN)', icon: FileCheck2 },
+      { to: `${base}/radicacion`, label: 'Radicación', icon: Gavel },
+      { to: `${base}/licenciamiento`, label: 'Licenciamiento', icon: Building2 },
+      { to: `${base}/reportes`, label: 'Reportes', icon: FileBarChart },
+    ],
+    [base],
+  )
 
   const title = useMemo(() => {
     const item = nav.find((n) =>
       n.end ? location.pathname === n.to : location.pathname.startsWith(n.to),
     )
     return item?.label ?? 'ULIS'
-  }, [location.pathname])
+  }, [location.pathname, nav])
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -72,7 +80,16 @@ export function AppShell() {
               </div>
             </div>
             <Separator className="bg-white/10" />
-            <ScrollArea className="flex-1 px-3 py-4">
+            <div className="px-4 py-2">
+              <NavLink
+                to="/projects"
+                className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-sidebar-muted hover:bg-white/5 hover:text-white"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Todos los proyectos
+              </NavLink>
+            </div>
+            <ScrollArea className="flex-1 px-3 py-2">
               <nav className="space-y-1">
                 {nav.map((item) => (
                   <NavLink
@@ -101,10 +118,12 @@ export function AppShell() {
               </nav>
             </ScrollArea>
             <div className="border-t border-white/10 p-4 text-xs text-sidebar-muted">
-              <p className="font-semibold text-white/90">Expediente controlado</p>
+              <p className="font-semibold text-white/90">Expediente</p>
               <p className="mt-1 leading-relaxed">
-                Trazabilidad jurídica, urbanística y registral del proyecto{' '}
-                <span className="text-white">{PROJECT.name}</span>.
+                <span className="text-white">
+                  {loading ? 'Cargando…' : project?.name ?? '—'}
+                </span>
+                {error ? <span className="mt-1 block text-destructive">{error}</span> : null}
               </p>
             </div>
           </div>
@@ -135,9 +154,7 @@ export function AppShell() {
                   Panel operativo
                 </p>
                 <div className="flex items-center gap-2">
-                  <h1 className="truncate text-lg font-semibold sm:text-xl">
-                    {title}
-                  </h1>
+                  <h1 className="truncate text-lg font-semibold sm:text-xl">{title}</h1>
                 </div>
               </div>
               <div className="hidden items-center gap-2 md:flex">
@@ -145,7 +162,7 @@ export function AppShell() {
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     readOnly
-                    placeholder="Buscar en expediente, radicados, norma…"
+                    placeholder="Buscar en expediente…"
                     className="h-10 w-72 rounded-xl border border-border bg-white pl-9 pr-3 text-sm shadow-sm outline-none ring-accent/0 transition focus:ring-2 focus:ring-accent/25"
                   />
                 </div>

@@ -1,42 +1,39 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { NoticeBanner } from '@/components/NoticeBanner'
 import { Separator } from '@/components/ui/separator'
-import { useUlis } from '@/context/UlisContext'
-import { ClipboardList, FileText, Gavel, Send } from 'lucide-react'
-
-const checklist1077 = [
-  'Certificado de libertad y tradición',
-  'Recibo del último impuesto predial',
-  'Cámara de comercio de la constructora',
-  'Documento de identidad del representante legal',
-  'Escrituras y documentación de propiedad',
-  'Carta catastral y certificaciones asociadas',
-  'Plano PUG aprobado y licencias de primera etapa',
-  'Disponibilidades de servicios públicos vigentes',
-]
+import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
+import { useNotice } from '@/hooks/useNotice'
+import { ClipboardList, FileText, Gavel } from 'lucide-react'
 
 export function RadicacionPage() {
-  const { metrics } = useUlis()
+  const { notice, showSuccess, showError, clear } = useNotice()
+  const { metrics, radItems, setRadItem, loading, error } = useProjectWorkspace()
   const prep = Math.min(100, Math.round(metrics.loaded * 2.2))
+
+  if (loading && !radItems.length && !error) {
+    return <p className="text-sm text-muted-foreground">Cargando radicación…</p>
+  }
+  if (error) return <p className="text-sm text-destructive">{error}</p>
 
   return (
     <div className="space-y-8">
+      {notice ? <NoticeBanner notice={notice} onDismiss={clear} /> : null}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Módulo 6 · Radicación
           </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">
-            Legal y debida forma ante Curaduría
-          </h2>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Legal y debida forma</h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Administración del paquete de radicación conforme al Decreto 1077 de 2015 y
-            lineamientos específicos de la Curaduría Urbana de Floridablanca, articulando
-            documentación jurídica y técnica.
+            Checklist persistido en base de datos; marque ítems satisfechos cuando exista soporte
+            en expediente.
           </p>
         </div>
         <Badge variant="outline" className="w-fit border-accent/40 text-accent">
-          Preparación {prep}%
+          Preparación referencial {prep}%
         </Badge>
       </div>
 
@@ -45,35 +42,53 @@ export function RadicacionPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Gavel className="h-4 w-4 text-accent" />
-              Checklist legal Decreto 1077 de 2015
+              Checklist Decreto 1077 de 2015
             </CardTitle>
             <CardDescription>
-              Estado referencial de cumplimiento formal; se alimenta de la recolección y de
-              los documentos jurídicos corporativos del cliente.
+              Cada ítem se actualiza en vivo. Notas opcionales por renglón.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            {checklist1077.map((item, idx) => {
-              const ok = metrics.complete > idx + 18
-              return (
-                <div
-                  key={item}
-                  className="flex items-start gap-3 rounded-2xl border border-border bg-white p-3 text-sm shadow-sm"
-                >
-                  <ClipboardList
-                    className={`mt-0.5 h-4 w-4 ${ok ? 'text-success' : 'text-muted-foreground'}`}
+          <CardContent className="grid gap-4">
+            {radItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm sm:flex-row sm:items-start"
+              >
+                <label className="flex items-start gap-3 pt-1">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-border"
+                    checked={item.is_satisfied}
+                    onChange={async (e) => {
+                      clear()
+                      const { error: err } = await setRadItem(item.id, {
+                        is_satisfied: e.target.checked,
+                      })
+                      if (err) showError(err)
+                      else showSuccess(e.target.checked ? 'Ítem marcado como satisfecho.' : 'Ítem desmarcado.')
+                    }}
                   />
-                  <div>
-                    <p className="font-medium text-foreground">{item}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {ok
-                        ? 'Documento localizado en repositorio ULIS.'
-                        : 'Pendiente de consolidación o vinculación al expediente.'}
-                    </p>
-                  </div>
+                  <span className="text-sm font-medium text-foreground">{item.title}</span>
+                </label>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Notas</Label>
+                  <Input
+                    key={`${item.id}-${item.updated_at}`}
+                    defaultValue={item.notes}
+                    onBlur={async (e) => {
+                      const { error: err } = await setRadItem(item.id, { notes: e.target.value })
+                      if (err) {
+                        clear()
+                        showError(err)
+                      }
+                    }}
+                  />
                 </div>
-              )
-            })}
+                <ClipboardList
+                  className={`mt-1 hidden h-4 w-4 shrink-0 sm:block ${item.is_satisfied ? 'text-success' : 'text-muted-foreground'}`}
+                />
+              </div>
+            ))}
           </CardContent>
         </Card>
 
@@ -81,36 +96,21 @@ export function RadicacionPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="h-4 w-4 text-accent" />
-              Documentos cargados
+              Resumen documental
             </CardTitle>
-            <CardDescription>
-              Sincronía con el checklist Mardel – Legal y anexos técnicos.
-            </CardDescription>
+            <CardDescription>Desde recolección (Supabase).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Ítems con soporte en ULIS
+                Ítems con archivo
               </p>
               <p className="mt-1 text-3xl font-semibold tabular-nums text-foreground">
                 {metrics.loaded}
               </p>
             </div>
             <Separator />
-            <p>
-              Antes de radicar, el equipo validará originalidad de firmas, literalidad de
-              poderes y correlación catastral–registral con los planos arquitectónicos.
-            </p>
-            <div className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-xs">
-              <p className="flex items-center gap-2 font-semibold text-foreground">
-                <Send className="h-3.5 w-3.5" />
-                Próxima acción
-              </p>
-              <p className="mt-2">
-                Coordinación de radicación digital y física (según instructivo vigente de la
-                Curaduría) una vez cerrada la MCN y el concepto jurídico de viabilidad.
-              </p>
-            </div>
+            <p>Documentos completos (estado): {metrics.complete}</p>
           </CardContent>
         </Card>
       </div>

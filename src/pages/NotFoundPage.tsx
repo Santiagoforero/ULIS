@@ -4,17 +4,15 @@ import { Link } from 'react-router-dom'
 
 export function NotFoundPage() {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
       <Card className="max-w-md">
         <CardHeader>
-          <CardTitle>Ruta no configurada en ULIS</CardTitle>
-          <CardDescription>
-            La ruta solicitada no existe en este entorno de consultoría simulada.
-          </CardDescription>
+          <CardTitle>Ruta no encontrada</CardTitle>
+          <CardDescription>La URL no corresponde a ningún módulo de ULIS.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-2">
           <Button asChild className="rounded-xl">
-            <Link to="/">Volver al dashboard</Link>
+            <Link to="/projects">Ir a proyectos</Link>
           </Button>
         </CardContent>
       </Card>

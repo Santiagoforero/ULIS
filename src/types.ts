@@ -1,11 +1,4 @@
-export type DocStatus = 'pending' | 'review' | 'complete'
-
-export type DocumentState = {
-  status: DocStatus
-  fileName?: string
-  uploadedAt?: string
-  observations: string
-}
+export type { DocStatus } from '@/types/database'
 
 export type LegalRiskLevel = 'bajo' | 'medio' | 'alto'
 

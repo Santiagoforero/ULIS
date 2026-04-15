@@ -29,3 +29,16 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+@keyframes ulis-upload-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.ulis-upload-bar {
+  animation: ulis-upload-slide 1.15s ease-in-out infinite;
+}
