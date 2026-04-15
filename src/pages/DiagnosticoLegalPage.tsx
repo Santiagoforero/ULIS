@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { useNotice } from '@/hooks/useNotice'
-import { BookMarked, GitBranch, Scale, ShieldAlert, Sparkles, Trash2 } from 'lucide-react'
+import { BookMarked, GitBranch, Layers, Scale, ShieldAlert, Sparkles, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
 export function DiagnosticoLegalPage() {
@@ -52,6 +52,21 @@ export function DiagnosticoLegalPage() {
         <Badge variant={unlocked ? 'success' : 'secondary'} className="w-fit">
           {unlocked ? 'Recolección completa' : 'Recolección en curso'}
         </Badge>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="secondary" className="gap-2 rounded-xl">
+          <Link to={`${base}/entregables/concepto_juridico`}>
+            <Layers className="h-4 w-4" />
+            Taller · Concepto jurídico
+          </Link>
+        </Button>
+        <Button asChild variant="secondary" className="gap-2 rounded-xl">
+          <Link to={`${base}/entregables/estudio_titulos`}>
+            <Layers className="h-4 w-4" />
+            Taller · Estudio de títulos
+          </Link>
+        </Button>
       </div>
 
       {!unlocked ? (

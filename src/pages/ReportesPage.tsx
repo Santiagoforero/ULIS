@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { metaStrings } from '@/lib/metadata'
-import { Download, FileSpreadsheet } from 'lucide-react'
+import { Download, FileSpreadsheet, Layers } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 
 function downloadBlob(filename: string, mime: string, body: string) {
   const blob = new Blob([body], { type: mime })
@@ -16,6 +17,8 @@ function downloadBlob(filename: string, mime: string, body: string) {
 }
 
 export function ReportesPage() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const base = `/p/${projectId ?? ''}`
   const { project, sections, metrics, loading, error } = useProjectWorkspace()
   const meta = project ? metaStrings(project.metadata) : {}
 
@@ -71,6 +74,15 @@ export function ReportesPage() {
           Generación local a partir de los datos actuales en memoria (recién cargados desde
           Supabase).
         </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="secondary" className="gap-2 rounded-xl">
+          <Link to={`${base}/entregables`}>
+            <Layers className="h-4 w-4" />
+            Taller de entregables (due diligence, contingencia, informe quincenal…)
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

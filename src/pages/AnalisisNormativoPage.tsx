@@ -8,9 +8,12 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { useNotice } from '@/hooks/useNotice'
-import { Landmark, Map, Ruler, Trees } from 'lucide-react'
+import { Landmark, Layers, Map, Ruler, Trees } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 
 export function AnalisisNormativoPage() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const base = `/p/${projectId ?? ''}`
   const { notice, showSuccess, showError, clear } = useNotice()
   const { metrics, normativo, setNormativo, loading, error } = useProjectWorkspace()
   const gate = metrics.overallProgress >= 72
@@ -39,6 +42,13 @@ export function AnalisisNormativoPage() {
           {gate ? 'Avance documental alto' : 'Consolidando insumos'}
         </Badge>
       </div>
+
+      <Button asChild variant="secondary" className="gap-2 rounded-xl">
+        <Link to={`${base}/entregables/fase2_viabilidad`}>
+          <Layers className="h-4 w-4" />
+          Taller · Informe Fase 2 (recomendaciones)
+        </Link>
+      </Button>
 
       {!normativo ? (
         <p className="text-sm text-destructive">

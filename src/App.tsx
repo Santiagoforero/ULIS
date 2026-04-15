@@ -13,6 +13,8 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
 import { RadicacionPage } from '@/pages/RadicacionPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { EntregableDetailPage } from '@/pages/EntregableDetailPage'
+import { EntregablesHubPage } from '@/pages/EntregablesHubPage'
 import { ProposalPage } from '@/pages/ProposalPage'
 import { ReportesPage } from '@/pages/ReportesPage'
 import { HomePage } from '@/pages/HomePage'
@@ -33,6 +35,8 @@ export default function App() {
               <Route element={<AppShell />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="propuesta" element={<ProposalPage />} />
+                <Route path="entregables" element={<EntregablesHubPage />} />
+                <Route path="entregables/:deliverableId" element={<EntregableDetailPage />} />
                 <Route path="recoleccion" element={<DocumentCollectionPage />} />
                 <Route path="diagnostico" element={<DiagnosticoLegalPage />} />
                 <Route path="analisis-normativo" element={<AnalisisNormativoPage />} />

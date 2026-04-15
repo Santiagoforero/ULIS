@@ -17,6 +17,7 @@ export type ProposalChecklistId =
   | 'concepto_juridico'
   | 'estudio_titulos'
   | 'due_diligence'
+  | 'fase2_viabilidad'
   | 'plan_contingencia'
   | 'radicacion_legal'
   | 'seguimiento_curaduria'
@@ -26,55 +27,62 @@ export const proposalChecklistItems: {
   id: ProposalChecklistId
   label: string
   hint: string
+  /** Ruta relativa al proyecto: taller didáctico + entregable final */
   route: string
 }[] = [
   {
     id: 'mcn',
     label: 'Matriz de Cumplimiento Normativo (MCN)',
     hint: 'Cruce artículo por artículo POT, Decreto 1077 y normativa complementaria.',
-    route: 'mcn',
+    route: 'entregables/mcn',
   },
   {
     id: 'concepto_juridico',
     label: 'Concepto jurídico de viabilidad',
-    hint: 'Fundamentos, riesgos y recomendaciones vinculantes.',
-    route: 'diagnostico',
+    hint: 'Fundamentos, riesgos, precedentes y recomendaciones vinculantes.',
+    route: 'entregables/concepto_juridico',
   },
   {
     id: 'estudio_titulos',
     label: 'Estudio de títulos',
-    hint: 'Cadena dominial, gravámenes y consistencia registral.',
-    route: 'diagnostico',
+    hint: 'Cadena dominial, gravámenes y consistencia catastral–registral.',
+    route: 'entregables/estudio_titulos',
   },
   {
     id: 'due_diligence',
     label: 'Informe de due diligence inmobiliaria',
     hint: 'Consolidación de hallazgos y riesgos del expediente.',
-    route: 'reportes',
+    route: 'entregables/due_diligence',
+  },
+  {
+    id: 'fase2_viabilidad',
+    label: 'Informe Fase 2 · recomendaciones y ajustes de viabilidad',
+    hint: 'Estrategias prácticas y plan de cierre tras Fase 1.',
+    route: 'entregables/fase2_viabilidad',
   },
   {
     id: 'plan_contingencia',
     label: 'Plan de contingencia jurídica',
-    hint: 'Estrategia de recursos y oposiciones.',
-    route: 'reportes',
+    hint: 'Recursos, oposiciones y escenarios procesales.',
+    route: 'entregables/plan_contingencia',
   },
   {
     id: 'radicacion_legal',
     label: 'Radicación en legal y debida forma',
-    hint: 'Checklist Decreto 1077 y soporte documental.',
-    route: 'radicacion',
+    hint: 'Paquete Curaduría: jurídico, técnico y disponibilidades.',
+    route: 'entregables/radicacion_paquete',
   },
   {
     id: 'seguimiento_curaduria',
     label: 'Seguimiento Curaduría / licenciamiento',
-    hint: 'Timeline, hitos y estados del trámite.',
-    route: 'licenciamiento',
+    hint: 'Requerimientos, respuestas y reuniones hasta resolución.',
+    route: 'entregables/seguimiento_curaduria',
   },
   {
     id: 'informe_seguimiento',
     label: 'Informe de seguimiento jurídico (referencia)',
     hint: 'Registro quincenal de radicados y constancias.',
-    route: 'reportes',
+    route: 'entregables/informe_seguimiento_quincenal',
   },
 ]
 

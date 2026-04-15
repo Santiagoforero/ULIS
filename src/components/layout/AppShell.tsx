@@ -17,6 +17,7 @@ import {
   FileSearch,
   Gavel,
   Landmark,
+  Layers,
   LayoutDashboard,
   Menu,
   Scale,
@@ -42,6 +43,7 @@ export function AppShell() {
     () => [
       { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: `${base}/propuesta`, label: 'Propuesta contractual', icon: ScrollText },
+      { to: `${base}/entregables`, label: 'Taller de entregables', icon: Layers },
       {
         to: `${base}/recoleccion`,
         label: 'Recolección Documental',

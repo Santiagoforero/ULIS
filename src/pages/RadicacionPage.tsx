@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -6,9 +7,12 @@ import { NoticeBanner } from '@/components/NoticeBanner'
 import { Separator } from '@/components/ui/separator'
 import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { useNotice } from '@/hooks/useNotice'
-import { ClipboardList, FileText, Gavel } from 'lucide-react'
+import { ClipboardList, FileText, Gavel, Layers } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 
 export function RadicacionPage() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const base = `/p/${projectId ?? ''}`
   const { notice, showSuccess, showError, clear } = useNotice()
   const { metrics, radItems, setRadItem, loading, error } = useProjectWorkspace()
   const prep = Math.min(100, Math.round(metrics.loaded * 2.2))
@@ -36,6 +40,13 @@ export function RadicacionPage() {
           Preparación referencial {prep}%
         </Badge>
       </div>
+
+      <Button asChild variant="secondary" className="gap-2 rounded-xl">
+        <Link to={`${base}/entregables/radicacion_paquete`}>
+          <Layers className="h-4 w-4" />
+          Taller del entregable · paquete de radicación
+        </Link>
+      </Button>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

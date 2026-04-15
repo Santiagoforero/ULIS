@@ -7,9 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { useNotice } from '@/hooks/useNotice'
-import { Plus, Table2, Trash2 } from 'lucide-react'
+import { Layers, Plus, Table2, Trash2 } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 
 export function MCNPage() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const base = `/p/${projectId ?? ''}`
   const { notice, showSuccess, showError, clear } = useNotice()
   const {
     metrics,
@@ -50,6 +53,15 @@ export function MCNPage() {
         <Badge variant={active ? 'success' : 'secondary'} className="w-fit">
           {active ? 'Recolección al 100%' : 'Recolección incompleta'}
         </Badge>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button asChild variant="secondary" className="gap-2 rounded-xl">
+          <Link to={`${base}/entregables/mcn`}>
+            <Layers className="h-4 w-4" />
+            Taller del entregable (guía + plantillas + PDF final)
+          </Link>
+        </Button>
       </div>
 
       {!active ? (

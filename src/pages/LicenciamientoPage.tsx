@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { NoticeBanner } from '@/components/NoticeBanner'
 import {
@@ -10,11 +11,14 @@ import {
 } from '@/components/ui/select'
 import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { useNotice } from '@/hooks/useNotice'
-import { Building2, Clock3, ListChecks, MessageSquare } from 'lucide-react'
+import { Building2, Clock3, Layers, ListChecks, MessageSquare } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 
 const ESTADOS = ['Pendiente', 'En curso', 'Cumplido', 'Bloqueado'] as const
 
 export function LicenciamientoPage() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const base = `/p/${projectId ?? ''}`
   const { notice, showSuccess, showError, clear } = useNotice()
   const { licSteps, setLicStep, loading, error } = useProjectWorkspace()
 
@@ -39,6 +43,13 @@ export function LicenciamientoPage() {
           cumplidos
         </Badge>
       </div>
+
+      <Button asChild variant="secondary" className="gap-2 rounded-xl">
+        <Link to={`${base}/entregables/seguimiento_curaduria`}>
+          <Layers className="h-4 w-4" />
+          Taller · seguimiento hasta licencia
+        </Link>
+      </Button>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

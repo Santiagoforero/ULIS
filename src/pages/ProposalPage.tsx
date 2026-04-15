@@ -189,8 +189,8 @@ export function ProposalPage() {
               Entregables y trazabilidad operativa
             </CardTitle>
             <CardDescription>
-              Marque cada ítem cuando esté listo en el expediente. Los enlaces abren el módulo donde se
-              consolida el trabajo.
+              Marque cada ítem cuando esté listo. «Abrir» lleva al taller didáctico del entregable
+              (metodología, plantillas, notas y documento final).
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">

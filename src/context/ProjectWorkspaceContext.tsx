@@ -1,3 +1,8 @@
+import {
+  mergeDeliverablesIntoMetadata,
+  parseDeliverablesMetadata,
+  type DeliverableFileMeta,
+} from '@/lib/deliverableMetadata'
 import { supabase } from '@/lib/supabase'
 import type { DocStatus, ProjectRow } from '@/types/database'
 import type { LegalRiskLevel, ProjectMetrics } from '@/types'
@@ -112,6 +117,18 @@ type ProjectWorkspaceValue = {
         | 'macro_state'
       >
     > & { metadata?: ProjectRow['metadata'] },
+  ) => Promise<{ error: string | null }>
+  patchProjectMetadata: (
+    fn: (prev: Record<string, unknown>) => Record<string, unknown>,
+  ) => Promise<{ error: string | null }>
+  uploadDeliverableFinalFile: (
+    deliverableId: string,
+    file: File,
+    opts?: { onProgress?: (pct: number) => void },
+  ) => Promise<{ error: string | null }>
+  removeDeliverableFinalFile: (
+    deliverableId: string,
+    index: number,
   ) => Promise<{ error: string | null }>
   addMcnRow: () => Promise<{ error: string | null }>
   updateMcnRow: (
@@ -566,6 +583,89 @@ export function ProjectWorkspaceProvider() {
     [projectId, reload],
   )
 
+  const patchProjectMetadata = useCallback(
+    async (fn: (prev: Record<string, unknown>) => Record<string, unknown>) => {
+      if (!project) return { error: 'Proyecto no cargado' }
+      const prev =
+        typeof project.metadata === 'object' && project.metadata && !Array.isArray(project.metadata)
+          ? { ...(project.metadata as Record<string, unknown>) }
+          : {}
+      const next = fn(prev)
+      return updateProject({ metadata: next as ProjectRow['metadata'] })
+    },
+    [project, updateProject],
+  )
+
+  const uploadDeliverableFinalFile = useCallback(
+    async (deliverableId: string, file: File, opts?: { onProgress?: (pct: number) => void }) => {
+      const onProgress = opts?.onProgress
+      const uid = (await supabase.auth.getUser()).data.user?.id
+      if (!uid || !projectId) return { error: 'Sesión no válida' }
+      const name = safeStorageFileName(file.name || 'archivo')
+      const path = `${uid}/${projectId}/deliverables/${deliverableId}/${Date.now()}_${name}`
+
+      onProgress?.(5)
+      let p = 5
+      const tick = window.setInterval(() => {
+        p = Math.min(p + 10, 85)
+        onProgress?.(p)
+      }, 200)
+
+      try {
+        const { error: up } = await supabase.storage.from(BUCKET).upload(path, file, {
+          upsert: true,
+          contentType: file.type || undefined,
+        })
+        if (up) return { error: up.message }
+
+        onProgress?.(92)
+        const nowIso = new Date().toISOString()
+        const entry: DeliverableFileMeta = {
+          storage_path: path,
+          file_name: file.name,
+          file_mime: file.type || null,
+          file_size: file.size,
+          uploaded_at: nowIso,
+        }
+
+        const dm = parseDeliverablesMetadata(project?.metadata)
+        const list = [...(dm.deliverable_final_files?.[deliverableId] ?? []), entry]
+        const { error: err } = await patchProjectMetadata((prev) =>
+          mergeDeliverablesIntoMetadata(prev as ProjectRow['metadata'], {
+            deliverable_final_files: { [deliverableId]: list },
+          }) as Record<string, unknown>,
+        )
+        if (err) {
+          await supabase.storage.from(BUCKET).remove([path])
+          return { error: err }
+        }
+        onProgress?.(100)
+        return { error: null }
+      } finally {
+        window.clearInterval(tick)
+        window.setTimeout(() => onProgress?.(0), 400)
+      }
+    },
+    [projectId, project?.metadata, patchProjectMetadata],
+  )
+
+  const removeDeliverableFinalFile = useCallback(
+    async (deliverableId: string, index: number) => {
+      const dm = parseDeliverablesMetadata(project?.metadata)
+      const list = dm.deliverable_final_files?.[deliverableId] ?? []
+      const item = list[index]
+      if (!item) return { error: 'Archivo no encontrado' }
+      await clearStorageIfPath(item.storage_path)
+      const nextList = list.filter((_, i) => i !== index)
+      return patchProjectMetadata((prev) =>
+        mergeDeliverablesIntoMetadata(prev as ProjectRow['metadata'], {
+          deliverable_final_files: { [deliverableId]: nextList },
+        }) as Record<string, unknown>,
+      )
+    },
+    [project?.metadata, patchProjectMetadata],
+  )
+
   const addMcnRow = useCallback(async () => {
     const max = mcnRows.reduce((m, r) => Math.max(m, r.sort_order), -1)
     const { error: u } = await supabase.from('project_mcn_rows').insert({
@@ -720,6 +820,9 @@ export function ProjectWorkspaceProvider() {
       deleteSection,
       updateDocument,
       updateProject,
+      patchProjectMetadata,
+      uploadDeliverableFinalFile,
+      removeDeliverableFinalFile,
       addMcnRow,
       updateMcnRow,
       deleteMcnRow,
@@ -755,6 +858,9 @@ export function ProjectWorkspaceProvider() {
       deleteSection,
       updateDocument,
       updateProject,
+      patchProjectMetadata,
+      uploadDeliverableFinalFile,
+      removeDeliverableFinalFile,
       addMcnRow,
       updateMcnRow,
       deleteMcnRow,
