@@ -56,7 +56,11 @@ function computeMetricsFromDocs(docs: ProjectDocumentRow[]): ProjectMetrics {
 
 function safeStorageFileName(name: string) {
   const trimmed = name.trim().slice(0, 180)
-  return trimmed.replace(/[/\\]/g, '_')
+  const normalized = trimmed
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._ -]/g, '_')
+  return normalized.replace(/[/\\\s]+/g, '_')
 }
 
 type ProjectWorkspaceValue = {
@@ -86,6 +90,8 @@ type ProjectWorkspaceValue = {
     title: string,
   ) => Promise<{ error: string | null }>
   addSection: (title: string, description: string) => Promise<{ error: string | null }>
+  deleteDocument: (docId: string) => Promise<{ error: string | null }>
+  deleteSection: (sectionId: string) => Promise<{ error: string | null }>
   updateProject: (
     patch: Partial<
       Pick<
@@ -421,6 +427,37 @@ export function ProjectWorkspaceProvider() {
     [projectId, sections, reload],
   )
 
+  const deleteDocument = useCallback(
+    async (docId: string) => {
+      const doc = flatDocs.find((d) => d.id === docId)
+      if (!doc) return { error: 'Documento no encontrado' }
+      if (doc.storage_path) await clearStorageIfPath(doc.storage_path)
+      const { error: del } = await supabase.from('project_documents').delete().eq('id', docId)
+      if (del) return { error: del.message }
+      await reload()
+      return { error: null }
+    },
+    [flatDocs, reload],
+  )
+
+  const deleteSection = useCallback(
+    async (sectionId: string) => {
+      const sec = sections.find((s) => s.id === sectionId)
+      if (!sec) return { error: 'Sección no encontrada' }
+      for (const doc of sec.project_documents) {
+        if (doc.storage_path) await clearStorageIfPath(doc.storage_path)
+      }
+      const { error: del } = await supabase
+        .from('project_document_sections')
+        .delete()
+        .eq('id', sectionId)
+      if (del) return { error: del.message }
+      await reload()
+      return { error: null }
+    },
+    [sections, reload],
+  )
+
   const updateProject = useCallback(
     async (
       patch: Partial<
@@ -594,6 +631,8 @@ export function ProjectWorkspaceProvider() {
       getSignedUrl,
       addDocumentToSection,
       addSection,
+      deleteDocument,
+      deleteSection,
       updateProject,
       addMcnRow,
       updateMcnRow,
@@ -625,6 +664,8 @@ export function ProjectWorkspaceProvider() {
       getSignedUrl,
       addDocumentToSection,
       addSection,
+      deleteDocument,
+      deleteSection,
       updateProject,
       addMcnRow,
       updateMcnRow,

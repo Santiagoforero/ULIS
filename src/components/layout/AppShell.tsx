@@ -23,13 +23,16 @@ import {
   Search,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 export function AppShell() {
   const { projectId } = useParams<{ projectId: string }>()
-  const { project, loading, error } = useProjectWorkspace()
+  const { project, sections, loading, error } = useProjectWorkspace()
   const location = useLocation()
+  const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [alertsOpen, setAlertsOpen] = useState(false)
 
   const base = `/p/${projectId ?? ''}`
 
@@ -58,6 +61,44 @@ export function AppShell() {
     )
     return item?.label ?? 'ULIS'
   }, [location.pathname, nav])
+
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return []
+    const results: Array<{ kind: 'section' | 'document'; label: string; section: string }> = []
+    for (const section of sections) {
+      if (
+        section.title.toLowerCase().includes(q) ||
+        (section.description ?? '').toLowerCase().includes(q)
+      ) {
+        results.push({ kind: 'section', label: section.title, section: section.title })
+      }
+      for (const doc of section.project_documents) {
+        if (
+          doc.title.toLowerCase().includes(q) ||
+          (doc.subtitle ?? '').toLowerCase().includes(q) ||
+          (doc.file_name ?? '').toLowerCase().includes(q)
+        ) {
+          results.push({ kind: 'document', label: doc.title, section: section.title })
+        }
+      }
+    }
+    return results.slice(0, 12)
+  }, [search, sections])
+
+  const missingDocs = useMemo(() => {
+    return sections
+      .flatMap((section) =>
+        section.project_documents.map((doc) => ({
+          id: doc.id,
+          title: doc.title,
+          section: section.title,
+          isMissing: doc.status === 'pending' || !doc.storage_path,
+        })),
+      )
+      .filter((d) => d.isMissing)
+      .slice(0, 8)
+  }, [sections])
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -161,24 +202,84 @@ export function AppShell() {
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
-                    readOnly
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
                     placeholder="Buscar en expediente…"
                     className="h-10 w-72 rounded-xl border border-border bg-white pl-9 pr-3 text-sm shadow-sm outline-none ring-accent/0 transition focus:ring-2 focus:ring-accent/25"
                   />
+                  {search.trim() ? (
+                    <div className="absolute right-0 z-30 mt-2 w-120 max-w-[80vw] rounded-xl border border-border bg-card p-2 shadow-xl">
+                      <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Resultados ({searchResults.length})
+                      </p>
+                      {searchResults.length === 0 ? (
+                        <p className="px-2 py-2 text-sm text-muted-foreground">
+                          No se encontraron secciones o documentos.
+                        </p>
+                      ) : (
+                        <div className="max-h-72 overflow-auto">
+                          {searchResults.map((result, idx) => (
+                            <button
+                              key={`${result.kind}-${result.label}-${idx}`}
+                              type="button"
+                              className="flex w-full flex-col items-start rounded-lg px-2 py-2 text-left hover:bg-muted"
+                              onClick={() => {
+                                navigate(`${base}/recoleccion?q=${encodeURIComponent(search.trim())}`)
+                              }}
+                            >
+                              <span className="text-sm font-medium">{result.label}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {result.kind === 'section' ? 'Sección' : 'Documento'} · {result.section}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
+                    onClick={() => setAlertsOpen((v) => !v)}
                     className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground shadow-sm hover:text-foreground"
                   >
                     <Bell className="h-4 w-4" />
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
+                    {missingDocs.length > 0 ? (
+                      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
+                    ) : null}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Centro de alertas y requerimientos</TooltipContent>
               </Tooltip>
+              {alertsOpen ? (
+                <div className="absolute right-4 top-14 z-30 w-96 max-w-[90vw] rounded-xl border border-border bg-card p-3 shadow-xl sm:right-8">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Documentos faltantes
+                  </p>
+                  {missingDocs.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      No hay pendientes por ahora.
+                    </p>
+                  ) : (
+                    <div className="mt-2 space-y-1">
+                      {missingDocs.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          className="w-full rounded-lg px-2 py-2 text-left hover:bg-muted"
+                          onClick={() => navigate(`${base}/recoleccion?q=${encodeURIComponent(d.title)}`)}
+                        >
+                          <p className="text-sm font-medium">{d.title}</p>
+                          <p className="text-xs text-muted-foreground">{d.section}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           </header>
 

@@ -22,7 +22,8 @@ import { useProjectWorkspace } from '@/context/ProjectWorkspaceContext'
 import { useNotice } from '@/hooks/useNotice'
 import type { DocStatus } from '@/types/database'
 import { ClipboardList, Download, Layers, Trash2, UploadCloud } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 function statusBadge(status: DocStatus) {
   if (status === 'pending')
@@ -59,6 +60,8 @@ export function DocumentCollectionPage() {
     getSignedUrl,
     addDocumentToSection,
     addSection,
+    deleteDocument,
+    deleteSection,
   } = useProjectWorkspace()
 
   const { notice, showSuccess, showError, clear } = useNotice()
@@ -69,6 +72,28 @@ export function DocumentCollectionPage() {
   const [newDocTitle, setNewDocTitle] = useState<Record<string, string>>({})
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [newSectionDesc, setNewSectionDesc] = useState('')
+  const [searchParams] = useSearchParams()
+  const q = (searchParams.get('q') ?? '').trim().toLowerCase()
+
+  const visibleSections = useMemo(() => {
+    if (!q) return sections
+    return sections
+      .map((section) => {
+        const sectionMatch =
+          section.title.toLowerCase().includes(q) ||
+          (section.description ?? '').toLowerCase().includes(q)
+        const docs = section.project_documents.filter(
+          (d) =>
+            sectionMatch ||
+            d.title.toLowerCase().includes(q) ||
+            (d.subtitle ?? '').toLowerCase().includes(q) ||
+            (d.file_name ?? '').toLowerCase().includes(q),
+        )
+        if (!sectionMatch && docs.length === 0) return null
+        return { ...section, project_documents: docs }
+      })
+      .filter((v): v is (typeof sections)[number] => !!v)
+  }, [q, sections])
 
   function pickFile(docId: string) {
     setTargetDocId(docId)
@@ -230,7 +255,7 @@ export function DocumentCollectionPage() {
 
       <ScrollArea className="max-h-none">
         <div className="space-y-6 pb-10">
-          {sections.map((section) => {
+          {visibleSections.map((section) => {
             const pct = sectionProgress(section.project_documents)
             return (
               <Card key={section.id} className="overflow-hidden">
@@ -250,6 +275,24 @@ export function DocumentCollectionPage() {
                       <div className="flex items-center gap-3 sm:justify-end">
                         <Progress value={pct} className="h-2 w-40 sm:w-44" />
                         <span className="text-sm font-semibold tabular-nums">{pct}%</span>
+                      </div>
+                      <div className="pt-1 sm:flex sm:justify-end">
+                        <InlineConfirm
+                          triggerLabel="Eliminar sección"
+                          leadingIcon={<Trash2 className="h-4 w-4" />}
+                          confirmLabel="Sí, eliminar"
+                          variant="outline"
+                          className="w-full rounded-xl text-destructive hover:text-destructive sm:w-auto"
+                          onConfirm={async () => {
+                            clear()
+                            const { error: err } = await deleteSection(section.id)
+                            if (err) {
+                              showError(err)
+                              return Promise.reject()
+                            }
+                            showSuccess('Sección eliminada (incluyendo sus documentos).')
+                          }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -408,6 +451,22 @@ export function DocumentCollectionPage() {
                                   }}
                                 />
                               ) : null}
+                              <InlineConfirm
+                                triggerLabel="Eliminar documento"
+                                leadingIcon={<Trash2 className="h-4 w-4" />}
+                                confirmLabel="Sí, eliminar"
+                                variant="outline"
+                                className="w-full gap-2 rounded-xl text-destructive hover:text-destructive"
+                                onConfirm={async () => {
+                                  clear()
+                                  const { error: err } = await deleteDocument(doc.id)
+                                  if (err) {
+                                    showError(err)
+                                    return Promise.reject()
+                                  }
+                                  showSuccess('Documento eliminado.')
+                                }}
+                              />
                             </div>
                           </div>
                         </div>
@@ -434,6 +493,13 @@ export function DocumentCollectionPage() {
               </Card>
             )
           })}
+          {visibleSections.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-sm text-muted-foreground">
+                No hay resultados para la búsqueda actual.
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </ScrollArea>
     </div>
