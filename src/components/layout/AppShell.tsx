@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
   Menu,
   Scale,
+  ScrollText,
   Search,
   X,
 } from 'lucide-react'
@@ -40,6 +41,7 @@ export function AppShell() {
   const nav = useMemo(
     () => [
       { to: base, label: 'Dashboard', icon: LayoutDashboard, end: true },
+      { to: `${base}/propuesta`, label: 'Propuesta contractual', icon: ScrollText },
       {
         to: `${base}/recoleccion`,
         label: 'Recolección Documental',

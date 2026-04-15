@@ -13,6 +13,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
 import { RadicacionPage } from '@/pages/RadicacionPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { ProposalPage } from '@/pages/ProposalPage'
 import { ReportesPage } from '@/pages/ReportesPage'
 import { HomePage } from '@/pages/HomePage'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/p/:projectId" element={<ProjectWorkspaceProvider />}>
               <Route element={<AppShell />}>
                 <Route index element={<DashboardPage />} />
+                <Route path="propuesta" element={<ProposalPage />} />
                 <Route path="recoleccion" element={<DocumentCollectionPage />} />
                 <Route path="diagnostico" element={<DiagnosticoLegalPage />} />
                 <Route path="analisis-normativo" element={<AnalisisNormativoPage />} />

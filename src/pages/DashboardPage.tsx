@@ -16,6 +16,7 @@ import {
   Timer,
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 function riskVariant(level: string) {
   if (level === 'alto') return 'destructive' as const
@@ -34,6 +35,12 @@ export function DashboardPage() {
   const { project, metrics, loading, error } = useProjectWorkspace()
   const base = `/p/${projectId ?? ''}`
   const meta = project ? metaStrings(project.metadata) : {}
+
+  const statusPieData = [
+    { name: 'Completo', value: metrics.complete, fill: 'oklch(0.62 0.17 145)' },
+    { name: 'En revisión', value: metrics.review, fill: 'oklch(0.78 0.15 85)' },
+    { name: 'Pendiente', value: metrics.pending, fill: 'oklch(0.58 0.22 25)' },
+  ].filter((d) => d.value > 0)
 
   if (loading && !project) {
     return <p className="text-sm text-muted-foreground">Cargando dashboard…</p>
@@ -58,6 +65,12 @@ export function DashboardPage() {
           <Badge variant={riskVariant(metrics.legalRisk)} className="px-3 py-1 text-xs">
             Riesgo jurídico estimado: {riskLabel(metrics.legalRisk)}
           </Badge>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link to={`${base}/propuesta`}>
+              Propuesta contractual
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
           <Button asChild variant="secondary" className="rounded-xl">
             <Link to={`${base}/recoleccion`}>
               Ir a recolección
@@ -66,6 +79,39 @@ export function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Distribución documental por estado</CardTitle>
+          <CardDescription>Datos en vivo desde Supabase (estados del checklist documental).</CardDescription>
+        </CardHeader>
+        <CardContent className="h-72">
+          {statusPieData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aún no hay documentos en el expediente.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={88}
+                  paddingAngle={2}
+                >
+                  {statusPieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
