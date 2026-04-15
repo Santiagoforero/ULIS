@@ -14,7 +14,7 @@ import { ProjectsPage } from '@/pages/ProjectsPage'
 import { RadicacionPage } from '@/pages/RadicacionPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { ReportesPage } from '@/pages/ReportesPage'
-import { SetupPage } from '@/pages/SetupPage'
+import { HomePage } from '@/pages/HomePage'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 export default function App() {
@@ -22,7 +22,8 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/setup" element={<Navigate to="/" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<RequireAuth />}>
@@ -39,7 +40,6 @@ export default function App() {
                 <Route path="reportes" element={<ReportesPage />} />
               </Route>
             </Route>
-            <Route path="/" element={<Navigate to="/projects" replace />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

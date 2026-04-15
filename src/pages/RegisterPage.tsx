@@ -21,7 +21,7 @@ export function RegisterPage() {
   const [resendInfo, setResendInfo] = useState<string | null>(null)
   const [resendBusy, setResendBusy] = useState(false)
 
-  if (!configured) return <Navigate to="/setup" replace />
+  if (!configured) return <Navigate to="/" replace />
   if (!loading && session) return <Navigate to="/projects" replace />
 
   async function onSubmit(e: React.FormEvent) {

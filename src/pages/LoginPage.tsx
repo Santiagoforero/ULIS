@@ -28,7 +28,7 @@ export function LoginPage() {
   const [showResend, setShowResend] = useState(false)
   const [resendBusy, setResendBusy] = useState(false)
 
-  if (!configured) return <Navigate to="/setup" replace />
+  if (!configured) return <Navigate to="/" replace />
   if (!loading && session) return <Navigate to="/projects" replace />
 
   async function onSubmit(e: React.FormEvent) {
