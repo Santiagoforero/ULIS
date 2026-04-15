@@ -20,8 +20,9 @@ export function HomePage() {
           Urban Legal Intelligence System
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Gestión de expedientes legales y urbanísticos con Supabase.
+          Gestión de expedientes legales y urbanísticos creado por Forez SAS
         </p>
+        
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button className="rounded-xl" asChild>
             <Link to="/login">Ingresar</Link>
@@ -30,10 +31,10 @@ export function HomePage() {
             <Link to="/register">Crear cuenta</Link>
           </Button>
         </div>
- 
+
       </div>
 
-    
     </div>
+    
   )
 }
