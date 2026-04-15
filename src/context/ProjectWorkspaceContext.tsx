@@ -4,6 +4,7 @@ import type { LegalRiskLevel, ProjectMetrics } from '@/types'
 import type {
   ProjectDiagRiskRow,
   ProjectDocumentRow,
+  ProjectDocumentFileRow,
   ProjectDocumentSectionRow,
   ProjectLicStepRow,
   ProjectMcnRow,
@@ -33,7 +34,7 @@ function computeMetricsFromDocs(docs: ProjectDocumentRow[]): ProjectMetrics {
     if (d.status === 'complete') complete++
     if (d.status === 'pending') pending++
     if (d.status === 'review') review++
-    if (d.storage_path) loaded++
+    if ((d.project_document_files?.length ?? 0) > 0 || d.storage_path) loaded++
   }
   const overallProgress =
     total === 0 ? 0 : Math.round((complete / total) * 1000) / 10
@@ -84,6 +85,7 @@ type ProjectWorkspaceValue = {
     opts?: { onProgress?: (pct: number) => void },
   ) => Promise<{ error: string | null }>
   removeDocumentFile: (docId: string) => Promise<{ error: string | null }>
+  removeSingleDocumentFile: (fileId: string) => Promise<{ error: string | null }>
   getSignedUrl: (storagePath: string) => Promise<string | null>
   addDocumentToSection: (
     sectionId: string,
@@ -92,6 +94,10 @@ type ProjectWorkspaceValue = {
   addSection: (title: string, description: string) => Promise<{ error: string | null }>
   deleteDocument: (docId: string) => Promise<{ error: string | null }>
   deleteSection: (sectionId: string) => Promise<{ error: string | null }>
+  updateDocument: (
+    docId: string,
+    patch: Partial<Pick<ProjectDocumentRow, 'title' | 'subtitle' | 'observations' | 'status'>>,
+  ) => Promise<{ error: string | null }>
   updateProject: (
     patch: Partial<
       Pick<
@@ -192,7 +198,7 @@ export function ProjectWorkspaceProvider() {
     const { data: secs, error: se } = await supabase
       .from('project_document_sections')
       .select(
-        'id, project_id, sort_order, title, description, project_documents ( id, project_id, section_id, sort_order, title, subtitle, observations, status, storage_path, file_name, file_mime, file_size, uploaded_at, updated_at )',
+        'id, project_id, sort_order, title, description, project_documents ( id, project_id, section_id, sort_order, title, subtitle, observations, status, storage_path, file_name, file_mime, file_size, uploaded_at, updated_at, project_document_files ( id, project_id, document_id, storage_path, file_name, file_mime, file_size, uploaded_at ) )',
       )
       .eq('project_id', projectId)
       .order('sort_order', { ascending: true })
@@ -203,7 +209,12 @@ export function ProjectWorkspaceProvider() {
       const normalized: SectionWithDocs[] = (secs ?? []).map((s) => ({
         ...(s as ProjectDocumentSectionRow),
         project_documents: sortDocs(
-          ((s as SectionWithDocs).project_documents ?? []) as ProjectDocumentRow[],
+          (((s as SectionWithDocs).project_documents ?? []) as ProjectDocumentRow[]).map((doc) => ({
+            ...doc,
+            project_document_files: (
+              ((doc as ProjectDocumentRow).project_document_files ?? []) as ProjectDocumentFileRow[]
+            ).sort((a, b) => +new Date(b.uploaded_at) - +new Date(a.uploaded_at)),
+          })),
         ),
       }))
       setSections(normalized)
@@ -306,8 +317,6 @@ export function ProjectWorkspaceProvider() {
       if (!doc || !uid || !projectId)
         return { error: 'Sesión o documento no válidos' }
 
-      if (doc.storage_path) await clearStorageIfPath(doc.storage_path)
-
       const name = safeStorageFileName(file.name || 'archivo')
       const path = `${uid}/${projectId}/${docId}/${Date.now()}_${name}`
 
@@ -327,6 +336,21 @@ export function ProjectWorkspaceProvider() {
 
         onProgress?.(92)
 
+        const nowIso = new Date().toISOString()
+        const { error: fileIns } = await supabase.from('project_document_files').insert({
+          project_id: projectId,
+          document_id: docId,
+          storage_path: path,
+          file_name: file.name,
+          file_mime: file.type || null,
+          file_size: file.size,
+          uploaded_at: nowIso,
+        })
+        if (fileIns) {
+          await supabase.storage.from(BUCKET).remove([path])
+          return { error: fileIns.message }
+        }
+
         const { error: db } = await supabase
           .from('project_documents')
           .update({
@@ -334,7 +358,7 @@ export function ProjectWorkspaceProvider() {
             file_name: file.name,
             file_mime: file.type || null,
             file_size: file.size,
-            uploaded_at: new Date().toISOString(),
+            uploaded_at: nowIso,
             status: 'review',
           })
           .eq('id', docId)
@@ -357,11 +381,17 @@ export function ProjectWorkspaceProvider() {
   const removeDocumentFile = useCallback(
     async (docId: string) => {
       const doc = flatDocs.find((d) => d.id === docId)
-      if (!doc?.storage_path) {
+      const files = doc?.project_document_files ?? []
+      if (!doc || files.length === 0) {
         await reload()
         return { error: null }
       }
-      await clearStorageIfPath(doc.storage_path)
+      await supabase.storage.from(BUCKET).remove(files.map((f) => f.storage_path))
+      const { error: delFiles } = await supabase
+        .from('project_document_files')
+        .delete()
+        .eq('document_id', docId)
+      if (delFiles) return { error: delFiles.message }
       const { error: db } = await supabase
         .from('project_documents')
         .update({
@@ -373,6 +403,37 @@ export function ProjectWorkspaceProvider() {
         })
         .eq('id', docId)
       if (db) return { error: db.message }
+      await reload()
+      return { error: null }
+    },
+    [flatDocs, reload],
+  )
+
+  const removeSingleDocumentFile = useCallback(
+    async (fileId: string) => {
+      const file = flatDocs
+        .flatMap((d) => d.project_document_files ?? [])
+        .find((f) => f.id === fileId)
+      if (!file) return { error: 'Archivo no encontrado' }
+      await clearStorageIfPath(file.storage_path)
+      const { error: del } = await supabase.from('project_document_files').delete().eq('id', fileId)
+      if (del) return { error: del.message }
+
+      const remaining = flatDocs
+        .flatMap((d) => d.project_document_files ?? [])
+        .filter((f) => f.document_id === file.document_id && f.id !== fileId)
+      if (remaining.length === 0) {
+        await supabase
+          .from('project_documents')
+          .update({
+            storage_path: null,
+            file_name: null,
+            file_mime: null,
+            file_size: null,
+            uploaded_at: null,
+          })
+          .eq('id', file.document_id)
+      }
       await reload()
       return { error: null }
     },
@@ -427,11 +488,29 @@ export function ProjectWorkspaceProvider() {
     [projectId, sections, reload],
   )
 
+  const updateDocument = useCallback(
+    async (
+      docId: string,
+      patch: Partial<Pick<ProjectDocumentRow, 'title' | 'subtitle' | 'observations' | 'status'>>,
+    ) => {
+      const { error: u } = await supabase.from('project_documents').update(patch).eq('id', docId)
+      if (u) return { error: u.message }
+      await reload()
+      return { error: null }
+    },
+    [reload],
+  )
+
   const deleteDocument = useCallback(
     async (docId: string) => {
       const doc = flatDocs.find((d) => d.id === docId)
       if (!doc) return { error: 'Documento no encontrado' }
-      if (doc.storage_path) await clearStorageIfPath(doc.storage_path)
+      const files = doc.project_document_files ?? []
+      if (files.length > 0) {
+        await supabase.storage.from(BUCKET).remove(files.map((f) => f.storage_path))
+      } else if (doc.storage_path) {
+        await clearStorageIfPath(doc.storage_path)
+      }
       const { error: del } = await supabase.from('project_documents').delete().eq('id', docId)
       if (del) return { error: del.message }
       await reload()
@@ -445,7 +524,12 @@ export function ProjectWorkspaceProvider() {
       const sec = sections.find((s) => s.id === sectionId)
       if (!sec) return { error: 'Sección no encontrada' }
       for (const doc of sec.project_documents) {
-        if (doc.storage_path) await clearStorageIfPath(doc.storage_path)
+        const files = doc.project_document_files ?? []
+        if (files.length > 0) {
+          await supabase.storage.from(BUCKET).remove(files.map((f) => f.storage_path))
+        } else if (doc.storage_path) {
+          await clearStorageIfPath(doc.storage_path)
+        }
       }
       const { error: del } = await supabase
         .from('project_document_sections')
@@ -628,11 +712,13 @@ export function ProjectWorkspaceProvider() {
       setObservations,
       uploadDocumentFile,
       removeDocumentFile,
+      removeSingleDocumentFile,
       getSignedUrl,
       addDocumentToSection,
       addSection,
       deleteDocument,
       deleteSection,
+      updateDocument,
       updateProject,
       addMcnRow,
       updateMcnRow,
@@ -661,11 +747,13 @@ export function ProjectWorkspaceProvider() {
       setObservations,
       uploadDocumentFile,
       removeDocumentFile,
+      removeSingleDocumentFile,
       getSignedUrl,
       addDocumentToSection,
       addSection,
       deleteDocument,
       deleteSection,
+      updateDocument,
       updateProject,
       addMcnRow,
       updateMcnRow,

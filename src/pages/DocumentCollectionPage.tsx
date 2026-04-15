@@ -57,11 +57,13 @@ export function DocumentCollectionPage() {
     setObservations,
     uploadDocumentFile,
     removeDocumentFile,
+    removeSingleDocumentFile,
     getSignedUrl,
     addDocumentToSection,
     addSection,
     deleteDocument,
     deleteSection,
+    updateDocument,
   } = useProjectWorkspace()
 
   const { notice, showSuccess, showError, clear } = useNotice()
@@ -73,11 +75,13 @@ export function DocumentCollectionPage() {
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [newSectionDesc, setNewSectionDesc] = useState('')
   const [searchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'all' | DocStatus>('all')
   const q = (searchParams.get('q') ?? '').trim().toLowerCase()
 
   const visibleSections = useMemo(() => {
-    if (!q) return sections
-    return sections
+    const bySearch = !q
+      ? sections
+      : sections
       .map((section) => {
         const sectionMatch =
           section.title.toLowerCase().includes(q) ||
@@ -93,7 +97,33 @@ export function DocumentCollectionPage() {
         return { ...section, project_documents: docs }
       })
       .filter((v): v is (typeof sections)[number] => !!v)
-  }, [q, sections])
+    if (activeTab === 'all') return bySearch
+    return bySearch
+      .map((section) => ({
+        ...section,
+        project_documents: section.project_documents.filter((d) => d.status === activeTab),
+      }))
+      .filter((section) => section.project_documents.length > 0)
+  }, [activeTab, q, sections])
+
+  const tabCounts = useMemo(
+    () => ({
+      all: sections.reduce((acc, s) => acc + s.project_documents.length, 0),
+      pending: sections.reduce(
+        (acc, s) => acc + s.project_documents.filter((d) => d.status === 'pending').length,
+        0,
+      ),
+      review: sections.reduce(
+        (acc, s) => acc + s.project_documents.filter((d) => d.status === 'review').length,
+        0,
+      ),
+      complete: sections.reduce(
+        (acc, s) => acc + s.project_documents.filter((d) => d.status === 'complete').length,
+        0,
+      ),
+    }),
+    [sections],
+  )
 
   function pickFile(docId: string) {
     setTargetDocId(docId)
@@ -253,6 +283,47 @@ export function DocumentCollectionPage() {
         </div>
       ) : null}
 
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant={activeTab === 'all' ? 'default' : 'outline'}
+          className="rounded-xl"
+          onClick={() => setActiveTab('all')}
+        >
+          Todos ({tabCounts.all})
+        </Button>
+        {tabCounts.complete > 0 ? (
+          <Button
+            type="button"
+            variant={activeTab === 'complete' ? 'default' : 'outline'}
+            className="rounded-xl"
+            onClick={() => setActiveTab('complete')}
+          >
+            Completos ({tabCounts.complete})
+          </Button>
+        ) : null}
+        {tabCounts.review > 0 ? (
+          <Button
+            type="button"
+            variant={activeTab === 'review' ? 'default' : 'outline'}
+            className="rounded-xl"
+            onClick={() => setActiveTab('review')}
+          >
+            En revisión ({tabCounts.review})
+          </Button>
+        ) : null}
+        {tabCounts.pending > 0 ? (
+          <Button
+            type="button"
+            variant={activeTab === 'pending' ? 'default' : 'outline'}
+            className="rounded-xl"
+            onClick={() => setActiveTab('pending')}
+          >
+            Pendientes ({tabCounts.pending})
+          </Button>
+        ) : null}
+      </div>
+
       <ScrollArea className="max-h-none">
         <div className="space-y-6 pb-10">
           {visibleSections.map((section) => {
@@ -337,7 +408,12 @@ export function DocumentCollectionPage() {
                   {section.project_documents.map((doc) => {
                     const isUploading = uploadUi?.docId === doc.id
                     return (
-                      <div key={doc.id} className="space-y-4 px-4 py-4">
+                      <div
+                        key={doc.id}
+                        className={`space-y-4 px-4 py-4 ${
+                          doc.status === 'complete' ? 'bg-success/5 shadow-[inset_0_0_0_1px_rgba(20,140,90,0.12)]' : ''
+                        }`}
+                      >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0 flex-1 space-y-3">
                             <div className="flex flex-wrap items-center gap-2">
@@ -346,36 +422,67 @@ export function DocumentCollectionPage() {
                                 ID · {doc.id.slice(0, 8)}…
                               </span>
                             </div>
-                            <p className="text-sm font-semibold leading-snug">{doc.title}</p>
+                            <Input
+                              key={`t-${doc.id}-${doc.updated_at}`}
+                              defaultValue={doc.title}
+                              className="max-w-xl"
+                              onBlur={async (e) => {
+                                const title = e.target.value.trim()
+                                if (!title) return
+                                const { error: err } = await updateDocument(doc.id, { title })
+                                if (err) {
+                                  clear()
+                                  showError(err)
+                                }
+                              }}
+                            />
                             {doc.subtitle ? (
                               <p className="text-xs text-muted-foreground">{doc.subtitle}</p>
                             ) : null}
 
-                            {doc.storage_path ? (
+                            {(doc.project_document_files?.length ?? 0) > 0 || doc.storage_path ? (
                               <>
-                                <DocumentFilePreview
-                                  storagePath={doc.storage_path}
-                                  fileName={doc.file_name}
-                                  fileMime={doc.file_mime}
-                                  getSignedUrl={getSignedUrl}
-                                />
-                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                  {doc.uploaded_at ? (
-                                    <span className="font-mono">
-                                      Subido: {new Date(doc.uploaded_at).toLocaleString('es-CO')}
-                                    </span>
-                                  ) : null}
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 gap-1 px-2"
-                                    onClick={() => void onDownload(doc.storage_path!)}
-                                  >
-                                    <Download className="h-3.5 w-3.5" />
-                                    Descargar / abrir
-                                  </Button>
-                                </div>
+                                {(doc.project_document_files ?? []).map((f) => (
+                                  <div key={f.id} className="space-y-2 rounded-xl border border-border/70 p-2">
+                                    <DocumentFilePreview
+                                      storagePath={f.storage_path}
+                                      fileName={f.file_name}
+                                      fileMime={f.file_mime}
+                                      getSignedUrl={getSignedUrl}
+                                    />
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                      <span className="font-mono">
+                                        Subido: {new Date(f.uploaded_at).toLocaleString('es-CO')}
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 gap-1 px-2"
+                                        onClick={() => void onDownload(f.storage_path)}
+                                      >
+                                        <Download className="h-3.5 w-3.5" />
+                                        Descargar / abrir
+                                      </Button>
+                                      <InlineConfirm
+                                        triggerLabel="Eliminar archivo"
+                                        leadingIcon={<Trash2 className="h-4 w-4" />}
+                                        confirmLabel="Sí, eliminar"
+                                        variant="outline"
+                                        className="h-8 rounded-lg text-destructive hover:text-destructive"
+                                        onConfirm={async () => {
+                                          clear()
+                                          const { error: err } = await removeSingleDocumentFile(f.id)
+                                          if (err) {
+                                            showError(err)
+                                            return Promise.reject()
+                                          }
+                                          showSuccess('Archivo eliminado.')
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
                               </>
                             ) : (
                               <p className="text-xs text-muted-foreground">
@@ -433,11 +540,11 @@ export function DocumentCollectionPage() {
                                   Subir archivo
                                 </Button>
                               )}
-                              {doc.storage_path ? (
+                              {(doc.project_document_files?.length ?? 0) > 0 || doc.storage_path ? (
                                 <InlineConfirm
-                                  triggerLabel="Quitar archivo"
+                                  triggerLabel="Quitar todos los archivos"
                                   leadingIcon={<Trash2 className="h-4 w-4" />}
-                                  confirmLabel="Sí, quitar"
+                                  confirmLabel="Sí, quitar todos"
                                   variant="outline"
                                   className="w-full gap-2 rounded-xl text-destructive hover:text-destructive"
                                   onConfirm={async () => {

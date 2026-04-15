@@ -21,6 +21,7 @@ import {
   Menu,
   Scale,
   Search,
+  X,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -93,7 +94,9 @@ export function AppShell() {
           id: doc.id,
           title: doc.title,
           section: section.title,
-          isMissing: doc.status === 'pending' || !doc.storage_path,
+          isMissing:
+            doc.status === 'pending' ||
+            ((doc.project_document_files?.length ?? 0) === 0 && !doc.storage_path),
         })),
       )
       .filter((d) => d.isMissing)
@@ -204,9 +207,25 @@ export function AppShell() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && search.trim()) {
+                        navigate(`${base}/recoleccion?q=${encodeURIComponent(search.trim())}`)
+                        setSearch('')
+                      }
+                    }}
                     placeholder="Buscar en expediente…"
                     className="h-10 w-72 rounded-xl border border-border bg-white pl-9 pr-3 text-sm shadow-sm outline-none ring-accent/0 transition focus:ring-2 focus:ring-accent/25"
                   />
+                  {search.trim() ? (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted"
+                      onClick={() => setSearch('')}
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
                   {search.trim() ? (
                     <div className="absolute right-0 z-30 mt-2 w-120 max-w-[80vw] rounded-xl border border-border bg-card p-2 shadow-xl">
                       <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -225,6 +244,7 @@ export function AppShell() {
                               className="flex w-full flex-col items-start rounded-lg px-2 py-2 text-left hover:bg-muted"
                               onClick={() => {
                                 navigate(`${base}/recoleccion?q=${encodeURIComponent(search.trim())}`)
+                                setSearch('')
                               }}
                             >
                               <span className="text-sm font-medium">{result.label}</span>
@@ -256,9 +276,19 @@ export function AppShell() {
               </Tooltip>
               {alertsOpen ? (
                 <div className="absolute right-4 top-14 z-30 w-96 max-w-[90vw] rounded-xl border border-border bg-card p-3 shadow-xl sm:right-8">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Documentos faltantes
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Documentos faltantes
+                    </p>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground hover:bg-muted"
+                      onClick={() => setAlertsOpen(false)}
+                      aria-label="Cerrar alertas"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                   {missingDocs.length === 0 ? (
                     <p className="mt-2 text-sm text-muted-foreground">
                       No hay pendientes por ahora.
@@ -270,7 +300,10 @@ export function AppShell() {
                           key={d.id}
                           type="button"
                           className="w-full rounded-lg px-2 py-2 text-left hover:bg-muted"
-                          onClick={() => navigate(`${base}/recoleccion?q=${encodeURIComponent(d.title)}`)}
+                          onClick={() => {
+                            navigate(`${base}/recoleccion?q=${encodeURIComponent(d.title)}`)
+                            setAlertsOpen(false)
+                          }}
                         >
                           <p className="text-sm font-medium">{d.title}</p>
                           <p className="text-xs text-muted-foreground">{d.section}</p>

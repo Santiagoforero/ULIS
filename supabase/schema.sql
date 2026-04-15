@@ -656,6 +656,75 @@ alter table public.project_rad_checklist_items
   add column if not exists updated_at timestamptz not null default now();
 
 -- =============================================================================
+-- MIGRACIÓN: múltiples archivos por documento (sin romper estructura existente)
+-- =============================================================================
+create table if not exists public.project_document_files (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects (id) on delete cascade,
+  document_id uuid not null references public.project_documents (id) on delete cascade,
+  storage_path text not null,
+  file_name text not null,
+  file_mime text,
+  file_size bigint,
+  uploaded_at timestamptz not null default now(),
+  unique (document_id, storage_path)
+);
+
+create index if not exists project_document_files_project_idx
+  on public.project_document_files (project_id);
+create index if not exists project_document_files_document_idx
+  on public.project_document_files (document_id);
+
+alter table public.project_document_files enable row level security;
+
+drop policy if exists "document_files_by_project" on public.project_document_files;
+create policy "document_files_by_project"
+  on public.project_document_files for all to authenticated
+  using (
+    exists (
+      select 1
+      from public.projects p
+      where p.id = project_id
+        and p.owner_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.projects p
+      where p.id = project_id
+        and p.owner_id = auth.uid()
+    )
+  );
+
+-- backfill desde columnas legacy de project_documents (si había 1 archivo histórico)
+insert into public.project_document_files (
+  project_id,
+  document_id,
+  storage_path,
+  file_name,
+  file_mime,
+  file_size,
+  uploaded_at
+)
+select
+  d.project_id,
+  d.id,
+  d.storage_path,
+  coalesce(d.file_name, 'archivo'),
+  d.file_mime,
+  d.file_size,
+  coalesce(d.uploaded_at, now())
+from public.project_documents d
+where d.storage_path is not null
+  and not exists (
+    select 1
+    from public.project_document_files f
+    where f.document_id = d.id
+      and f.storage_path = d.storage_path
+  );
+
+-- =============================================================================
 -- NOTAS POST-EJECUCIÓN (en Supabase Dashboard)
 -- 1) Authentication → Providers → activar Email.
 -- 2) URL de redirect: http://localhost:5173 y su dominio de producción.

@@ -48,6 +48,18 @@ export type ProjectDocumentRow = {
   file_size: number | null
   uploaded_at: string | null
   updated_at: string
+  project_document_files?: ProjectDocumentFileRow[]
+}
+
+export type ProjectDocumentFileRow = {
+  id: string
+  project_id: string
+  document_id: string
+  storage_path: string
+  file_name: string
+  file_mime: string | null
+  file_size: number | null
+  uploaded_at: string
 }
 
 export type ProjectMcnRow = {
@@ -152,6 +164,20 @@ export type Database = {
           uploaded_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['project_documents']['Insert']>
+      }
+      project_document_files: {
+        Row: ProjectDocumentFileRow
+        Insert: {
+          id?: string
+          project_id: string
+          document_id: string
+          storage_path: string
+          file_name: string
+          file_mime?: string | null
+          file_size?: number | null
+          uploaded_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['project_document_files']['Insert']>
       }
       project_mcn_rows: {
         Row: ProjectMcnRow
